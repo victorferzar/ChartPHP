@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/EjemploPPT.iml" filepath="$PROJECT_DIR$/.idea/EjemploPPT.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/ChartPHP.iml" filepath="$PROJECT_DIR$/.idea/ChartPHP.iml" />
     </modules>
   </component>
 </project>
