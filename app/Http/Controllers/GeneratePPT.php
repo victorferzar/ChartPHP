@@ -4,19 +4,26 @@
 namespace App\Http\Controllers;
 header('Content-type: application/vnd.openxmlformats-officedocument.presentationml.presentation');
 
+
 use Illuminate\Http\Request;
-use PhpOffice\PhpPresentation\DocumentLayout;
 use PhpOffice\PhpPresentation\PhpPresentation;
 use PhpOffice\PhpPresentation\IOFactory;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\Line;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\Scatter;
+use PhpOffice\PhpPresentation\Shape\RichText;
 use PhpOffice\PhpPresentation\Style\Border;
 use PhpOffice\PhpPresentation\Style\Color;
 use PhpOffice\PhpPresentation\Shape\Chart\Series;
 use PhpOffice\PhpPresentation\Style\Fill;
 use PhpOffice\PhpPresentation\Style\Outline;
 use PhpOffice\PhpPresentation\Style\Shadow;
-
+use PhpOffice\PhpPresentation\Shape\Table;
+use PhpOffice\PhpPresentation\Shape\Table\Row;
+use PhpOffice\PhpPresentation\Shape\Table\Cell;
+use PhpOffice\PhpPresentation\Shape\Placeholder;
+use PhpOffice\PhpPresentation\Shape\Chart\Type\Bar;
+use PhpOffice\PhpPresentation\Style\Alignment;
+use App;
 
 class GeneratePPT extends Controller
 {
@@ -30,42 +37,35 @@ class GeneratePPT extends Controller
     public function generateppt(Request $request)
     {
         //return $request->all();
-        /*Se rescatan los datos enviados por la vista welcome usando $request
-  * se asignan esos datos a una correspondiente variable
-  * se insertan dichos datos en un array $seriesData
-  * @seriesData = datos a mostrar como puntos en el grafico
-  */
-        $vLunes = (int)$request->dLunes;
-        $vMartes = (int)$request->dMartes;
-        $vMiercoles = (int)$request->dMiercoles;
-        $vJueves = (int)$request->dJueves;
-        $vViernes = (int)$request->dViernes;
-        $vSabado = (int)$request->dSabado;
-        $vDomingo = (int)$request->dDomingo;
-
-        $seriesData = array(
-            'Monday' => $vLunes,
-            'Tuesday' => $vMartes,
-            'Wednesday' => $vMiercoles,
-            'Thursday' => $vJueves,
-            'Friday' => $vViernes,
-            'Saturday' => $vSabado,
-            'Sunday' => $vDomingo
-        );
 
         /**
          * se crea una nueva instancia de PowerPoint
          */
         $objPPT = new PhpPresentation();
-        // $oMasterSlide = $objPPT->getAllMasterSlides()[0];
-        // $oSlideLayout = $oMasterSlide->getAllSlideLayouts()[0];
-        /*
-         * Estgablecido el formato de las1 diapositivas
-         */
-        $objPPT->getLayout()->setDocumentLayout(DocumentLayout::LAYOUT_SCREEN_16X9);
         $objPPT->getDocumentProperties()->setCreator('Austem');
 
-        $this->crearSlide($objPPT, $seriesData);
+        $dataBD = App\Dtm_qaqc_blk_std::where('STANDARDID', 'BF40')
+            ->where('ASSAYNAME', 'CuT_CMCCAAS_pct')
+            ->get();
+
+        //DATOS DEL GRAFICO
+        $cont = 1;
+        $series1Data = [];
+        foreach ($dataBD as $num) {
+            $series1Data[] = floatval($num->ASSAYVALUE);
+            $cont++;
+        }
+
+        foreach ($series1Data as $enum) {
+            return $series1Data+$enum;
+        }
+
+        //$blanks = DTM_QAQC_BLK_STD::all();
+
+
+        $this->blankDraw($objPPT);
+
+
         //GUARDAR EN EL EQUIPO
         $oWriterPPTX = IOFactory::createWriter($objPPT, 'PowerPoint2007');
 
@@ -75,9 +75,16 @@ class GeneratePPT extends Controller
         exit;
     }
 
+
+    /***
+     * CREA LA DIAPOSITIVA Y ESTABLECE EL FONDO DEL OBJETO Y LA SOMBRA QUE DESPERENDE
+     * @param PhpPresentation $objPPT ducumento ppt
+     * @param $seriesData  valores del grafico
+     * @throws \Exception     *
+     */
     public function crearSlide(PhpPresentation $objPPT, $seriesData)
     {
-        $currentSlide = $objPPT->createSlide();
+
         //Llena un objeto Shape de un color solido, en este caso
         $oFill = new Fill();
         $oFill->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('ffe6e6'));
@@ -103,14 +110,19 @@ class GeneratePPT extends Controller
 
         $lineChart->addSeries($series);
 
-        $this->chartLeft($currentSlide, $oFill, $oShadow, $lineChart);
-        $this->chartRight($currentSlide, $oFill, $oShadow, $seriesData);
+        //  $this->chartLeft($currentSlide, $oFill, $oShadow, $lineChart);
+        // $this->chartRight($currentSlide, $oFill, $oShadow, $seriesData);
     }
 
     public function chartLeft($currentSlide, $oFill, $oShadow, $lineChart)
     {
         $shapeLeft = $currentSlide->createChartShape();
-        $shapeLeft->setName('PHPPRESENTATION DE LA IZQUIERDA')->setResizeProportional(false)->setHeight(400)->setWidth(450)->setOffsetX(10)->setOffsetY(120);
+        $shapeLeft->setName('PHPPRESENTATION DE LA IZQUIERDA')
+            ->setResizeProportional(false)
+            ->setHeight(400)
+            ->setWidth(450)
+            ->setOffsetX(10)
+            ->setOffsetY(120);
         $shapeLeft->setShadow($oShadow);
         $shapeLeft->setFill($oFill);
         $shapeLeft->getBorder()->setLineStyle(Border::LINE_SINGLE);
@@ -144,6 +156,101 @@ class GeneratePPT extends Controller
         $shapeRight->getView3D()->setPerspective(30);
         $shapeRight->getLegend()->getBorder()->setLineStyle(Border::LINE_SINGLE);
         $shapeRight->getLegend()->getFont()->setItalic(true);
+    }
+
+    public function blankDraw(PhpPresentation $objPPT)
+    {
+        //FILTRO BD
+        $dataBD = App\Dtm_qaqc_blk_std::where('STANDARDID', 'BF40')
+            ->where('ASSAYNAME', 'CuT_CMCCAAS_pct')
+            ->get();
+
+        //DATOS DEL GRAFICO
+        $series1Data = array();
+        foreach ($dataBD as $num) {
+            return $num;
+        }
+//        $series2Data = array('Jan' => 266, 'Feb' => 198, 'Mar' => 271, 'Apr' => 305, 'May' => 267, 'Jun' => 301, 'Jul' => 340, 'Aug' => 326, 'Sep' => 344, 'Oct' => 364, 'Nov' => 383, 'Dec' => 379);
+
+
+        //DATOS DE LA TABLA
+
+        $dataA = array(
+            1 => "# of Analyses Above Threshold",
+            2 => "# of Outside Warning Limit",
+            3 => "# of Outside Error Limit",
+            4 => "# of Analyses Bellow Threshold",
+            5 => "% Outside Error Limit",
+            6 => "Mean",
+            7 => "Median",
+            8 => "Min",
+            9 => "Max",
+            10 => "Standard Deviation",
+            11 => "Rel. Std. Dev",
+            12 => "Standard Error",
+            13 => "Rel. Std. Err",
+            14 => "Total Bias",
+            15 => "% Mean Bias"
+        );
+
+        $dataB = array();
+
+        $currentSlide = $objPPT->createSlide();
+        $tableShape = $currentSlide->createTableShape(2);
+
+        $tableShape->setResizeProportional(false)->setHeight(200)->setWidth(250)->setOffsetX(700)->setOffsetY(100);
+
+        $row0 = $tableShape->createRow();
+
+        $cell00 = $row0->nextCell();
+        $cell00->CreateTextRun("STATISTICS");
+
+        $cell01 = $row0->getCell(1);
+        $cell01->createTextRun(strval($dataBD->count()));
+        $cell01->setWidth(50);
+
+        for ($i = 1; $i <= 15; $i++) {
+            $row[$i] = $tableShape->createRow();
+
+            $cellAux = $row[$i]->getCell(0);
+            $cellAux->CreateTextRun($dataA[$i]);
+        }
+
+        //GRAFICO
+
+        $barChart = new Bar();
+        $barChart->setGapWidthPercent(158);
+        $series1 = new Series('2009', $series1Data);
+        $series1->setShowSeriesName(true);
+        $series1->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FF4F81BD'));
+        $series1->getFont()->getColor()->setRGB('00FF00');
+        $series1->getDataPointFill(2)->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FFE06B20'));
+        /* $series2 = new Series('2010', $series2Data);
+         $series2->setShowSeriesName(true);
+         $series2->getFont()->getColor()->setRGB('FF0000');
+         $series2->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FFC0504D'));
+         $series2->setLabelPosition(Series::LABEL_INSIDEEND);*/
+        $barChart->addSeries($series1);
+        // $barChart->addSeries($series2);
+
+
+        $chartShape = $currentSlide->createChartShape();
+        $chartShape->setName("Grafico de Blancos")->setResizeProportional(false)->setHeight(400)
+            ->setWidth(450)
+            ->setOffsetX(10)
+            ->setOffsetY(120);
+        $chartShape->getBorder()->setLineStyle(Border::LINE_SINGLE);
+        $chartShape->getTitle()->setText('PHPPresentation Monthly Downloads');
+        $chartShape->getTitle()->getFont()->setItalic(true);
+        $chartShape->getTitle()->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $chartShape->getPlotArea()->getAxisX()->setTitle('Month');
+        $chartShape->getPlotArea()->getAxisY()->getFont()->getColor()->setRGB('00FF00');
+        $chartShape->getPlotArea()->getAxisY()->setTitle('Downloads');
+        $chartShape->getPlotArea()->setType($barChart);
+        $chartShape->getLegend()->getBorder()->setLineStyle(Border::LINE_SINGLE);
+        $chartShape->getLegend()->getFont()->setItalic(true);
+
+
     }
 }
 
