@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 header('Content-type: application/vnd.openxmlformats-officedocument.presentationml.presentation');
 
 
+use DateTime;
 use Illuminate\Http\Request;
+use phpDocumentor\Reflection\Types\Array_;
+use PhpOffice\PhpPresentation\Shape\RichText\Run;
 use PhpOffice\PhpPresentation\PhpPresentation;
 use PhpOffice\PhpPresentation\IOFactory;
 use PhpOffice\PhpPresentation\Shape\Chart\Type\Line;
@@ -34,9 +37,38 @@ class GeneratePPT extends Controller
         return view('welcome');
     }
 
+    public function filtrarBlancos($standardID, $assayName, $vDesde, $vHasta)
+    {
+
+        $datosBD = App\Dtm_qaqc_blk_std::select("*")
+            ->where("STANDARDID", "=", "$standardID")
+            ->where("ASSAYNAME", "=", "$assayName")
+            ->whereRaw("TRY_CONVERT(date, RETURNDATE, 103) Between ('$vDesde') AND ('$vHasta')")
+            ->orderByRaw('TRY_CONVERT(date, RETURNDATE, 103) Asc')
+            ->get();
+        return $datosBD;
+
+    }
+
     public function generateppt(Request $request)
     {
+
         //return $request->all();
+        $vDesde = $request->input("fecha_des");
+        $vHasta = $request->input("fecha_has");
+
+        // $datosBD = $this->filtrarBlancos("BF42", "CuT_CMCCAAS_pct", $vDesde, $vHasta);
+
+        /*   $datosBD = App\Dtm_qaqc_blk_std::select("*")
+               ->where("STANDARDID","=","BF42")
+               ->where("ASSAYNAME","=","CuT_CMCCAAS_pct")
+               ->whereRaw("TRY_CONVERT(date, RETURNDATE, 103) Between ('$vDesde') AND ('$vHasta')")
+               ->get();
+
+   */
+
+        //return $datosBD->count();
+
 
         /**
          * se crea una nueva instancia de PowerPoint
@@ -44,26 +76,13 @@ class GeneratePPT extends Controller
         $objPPT = new PhpPresentation();
         $objPPT->getDocumentProperties()->setCreator('Austem');
 
-        $dataBD = App\Dtm_qaqc_blk_std::where('STANDARDID', 'BF40')
-            ->where('ASSAYNAME', 'CuT_CMCCAAS_pct')
-            ->get();
-
+        /*  $dataBD = App\Dtm_qaqc_blk_std::where('STANDARDID', 'BF40')
+              ->where('ASSAYNAME', 'CuT_CMCCAAS_pct')
+              ->get();
+  */
         //DATOS DEL GRAFICO
-        $cont = 1;
-        $series1Data = [];
-        foreach ($dataBD as $num) {
-            $series1Data[] = floatval($num->ASSAYVALUE);
-            $cont++;
-        }
 
-        foreach ($series1Data as $enum) {
-            return $series1Data+$enum;
-        }
-
-        //$blanks = DTM_QAQC_BLK_STD::all();
-
-
-        $this->blankDraw($objPPT);
+        $this->blankDraw($objPPT, $vDesde, $vHasta);
 
 
         //GUARDAR EN EL EQUIPO
@@ -158,20 +177,20 @@ class GeneratePPT extends Controller
         $shapeRight->getLegend()->getFont()->setItalic(true);
     }
 
-    public function blankDraw(PhpPresentation $objPPT)
+    public function blankDraw(PhpPresentation $objPPT, $vDesde, $vHasta)
     {
         //FILTRO BD
-        $dataBD = App\Dtm_qaqc_blk_std::where('STANDARDID', 'BF40')
-            ->where('ASSAYNAME', 'CuT_CMCCAAS_pct')
-            ->get();
+        $dataBD = $this->filtrarBlancos("BF42", "CuT_CMCCAAS_pct", $vDesde, $vHasta);
 
         //DATOS DEL GRAFICO
-        $series1Data = array();
-        foreach ($dataBD as $num) {
-            return $num;
-        }
-//        $series2Data = array('Jan' => 266, 'Feb' => 198, 'Mar' => 271, 'Apr' => 305, 'May' => 267, 'Jun' => 301, 'Jul' => 340, 'Aug' => 326, 'Sep' => 344, 'Oct' => 364, 'Nov' => 383, 'Dec' => 379);
 
+        $cont = 0;
+        foreach ($dataBD as $num) {
+            $aux = date('d-m', strtotime($num->RETURNDATE));
+            $series1Data[$aux] = floatval($num->ASSAYVALUE);
+            $vId = $num->STANDARDID;
+            $vNombreMuestra = $num->ASSAYNAME;
+        }
 
         //DATOS DE LA TABLA
 
@@ -192,9 +211,7 @@ class GeneratePPT extends Controller
             14 => "Total Bias",
             15 => "% Mean Bias"
         );
-
-        $dataB = array();
-
+        //TABLA
         $currentSlide = $objPPT->createSlide();
         $tableShape = $currentSlide->createTableShape(2);
 
@@ -216,39 +233,56 @@ class GeneratePPT extends Controller
             $cellAux->CreateTextRun($dataA[$i]);
         }
 
-        //GRAFICO
+        //TITULO
+        $txtShape = $currentSlide->createRichTextShape()->setHeight(100)->setWidth(300)->setOffsetX(10)->setOffsetY(10);
+        $txtShape->getActiveParagraph()->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $txtRun = $txtShape->createTextRun("FECHA DESDE: " . date('d-m-y', strtotime($vDesde)) . "\n" . "FECHA HASTA: " . date('d-m-y', strtotime($vHasta)));
 
+        $txtRun->getFont()->setItalic(true)
+            ->setSize(12)
+            ->setColor(new Color('FFE06B20'));
+
+
+        //GRAFICO DE BARRAS
+        //BARRA
         $barChart = new Bar();
         $barChart->setGapWidthPercent(158);
         $series1 = new Series('2009', $series1Data);
-        $series1->setShowSeriesName(true);
+        $series1->setShowSeriesName(false);
         $series1->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FF4F81BD'));
         $series1->getFont()->getColor()->setRGB('00FF00');
+        $series1->setShowValue(false);
         $series1->getDataPointFill(2)->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FFE06B20'));
-        /* $series2 = new Series('2010', $series2Data);
-         $series2->setShowSeriesName(true);
-         $series2->getFont()->getColor()->setRGB('FF0000');
-         $series2->getFill()->setFillType(Fill::FILL_SOLID)->setStartColor(new Color('FFC0504D'));
-         $series2->setLabelPosition(Series::LABEL_INSIDEEND);*/
         $barChart->addSeries($series1);
-        // $barChart->addSeries($series2);
 
-
+        //GRAFICO
         $chartShape = $currentSlide->createChartShape();
         $chartShape->setName("Grafico de Blancos")->setResizeProportional(false)->setHeight(400)
-            ->setWidth(450)
-            ->setOffsetX(10)
+            ->setWidth(650)
+            ->setOffsetX(20)
             ->setOffsetY(120);
         $chartShape->getBorder()->setLineStyle(Border::LINE_SINGLE);
-        $chartShape->getTitle()->setText('PHPPresentation Monthly Downloads');
+        $chartShape->getTitle()->setText($vId." - ".$vNombreMuestra);
         $chartShape->getTitle()->getFont()->setItalic(true);
         $chartShape->getTitle()->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
-        $chartShape->getPlotArea()->getAxisX()->setTitle('Month');
+        $chartShape->getPlotArea()->getAxisX()->setTitle('Fecha de Retorno');
         $chartShape->getPlotArea()->getAxisY()->getFont()->getColor()->setRGB('00FF00');
-        $chartShape->getPlotArea()->getAxisY()->setTitle('Downloads');
+        $chartShape->getPlotArea()->getAxisY()->setTitle('Ley Laboratorio');
+
         $chartShape->getPlotArea()->setType($barChart);
-        $chartShape->getLegend()->getBorder()->setLineStyle(Border::LINE_SINGLE);
-        $chartShape->getLegend()->getFont()->setItalic(true);
+        $chartShape->getLegend()->setVisible(false);
+
+    }
+
+    public function buscar(Request $request)
+    {
+        $vDesde = $request->input("fecha_des");
+        $vHasta = $request->input("fecha_has");
+
+        $datosBD = App\Dtm_qaqc_blk_std::where('RETURNDATE', '>=', $vDesde)
+            ->where('RETURNDATE', '=', $vHasta);
+
+        return $request->all();
 
 
     }
