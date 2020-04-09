@@ -17,23 +17,24 @@
     <h1>Generador de PPT</h1>
 
     <div class="form-inline">
-        <input type="date" name="fecha_des" required placeholder="Fecha Desde" value="1991-09-13" disabled>
-        <input type="date" name="fecha_has" required placeholder="Fecha Hasta" value="2020-04-03" disabled>
-    </div>
-    <div class="form-inline" >
-        <label for="blk">Blancos</label>
-        <input type="checkbox" id="blk" name="dBlancos" >
-        <label for="dup">Duplicados</label>
-        <input type="checkbox" id="dup" name="dDuplicados">
-        <label for="std">Standards</label>
-        <input type="checkbox" id="std" name="dStandards" >
+        <input type="date" name="fecha_des" required placeholder="Fecha Desde" value="2018-01-01" >
+        <input type="date" name="fecha_has" required placeholder="Fecha Hasta" value="2020-04-08" >
     </div>
 
-    <button type="submit" class="btn btn-primary btn-block">GENERAR</button>
+    <!-- <div class="form-inline" >
+         <label for="blk">Blancos</label>
+         <input type="checkbox" id="blk" name="dBlancos" >
+         <label for="dup">Duplicados</label>
+         <input type="checkbox" id="dup" name="dDuplicados">
+         <label for="std">Standards</label>
+         <input type="checkbox" id="std" name="dStandards" >
+     </div>-->
 
-</form>
+     <button type="submit" class="btn btn-primary btn-block">GENERAR</button>
 
-<!-- Optional JavaScript -->
+ </form>
+
+ <!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
 <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
         integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"
