@@ -21,15 +21,6 @@
         <input type="date" name="fecha_has" required placeholder="Fecha Hasta" value="2020-04-08" >
     </div>
 
-    <!-- <div class="form-inline" >
-         <label for="blk">Blancos</label>
-         <input type="checkbox" id="blk" name="dBlancos" >
-         <label for="dup">Duplicados</label>
-         <input type="checkbox" id="dup" name="dDuplicados">
-         <label for="std">Standards</label>
-         <input type="checkbox" id="std" name="dStandards" >
-     </div>-->
-
      <button type="submit" class="btn btn-primary btn-block">GENERAR</button>
 
  </form>
