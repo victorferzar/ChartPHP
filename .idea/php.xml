@@ -104,6 +104,12 @@
       <path value="$PROJECT_DIR$/../../bin/php/php-7.2.19-Win32-VC15-x64" />
       <path value="$PROJECT_DIR$/../../bin/php/php-7.2.19-Win32-VC15-x64/dev" />
       <path value="$PROJECT_DIR$/../../bin/php/php-7.2.19-Win32-VC15-x64/dev" />
+      <path value="$PROJECT_DIR$/vendor/spatie/temporary-directory" />
+      <path value="$PROJECT_DIR$/vendor/spatie/image-optimizer" />
+      <path value="$PROJECT_DIR$/vendor/spatie/image" />
+      <path value="$PROJECT_DIR$/vendor/spatie/browsershot" />
+      <path value="$PROJECT_DIR$/vendor/intervention/image" />
+      <path value="$PROJECT_DIR$/vendor/league/glide" />
     </include_path>
   </component>
   <component name="PhpInterpreters">

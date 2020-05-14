@@ -17,3 +17,13 @@ mix.js('resources/js/app.js', 'public/js')
 
 mix.copy('resources/images', '/public/images', false);
 
+mix.extract();
+
+if (mix.inProduction()) {
+    mix.version();
+}
+
+mix.browserSync({
+    proxy: 'http://ChartPHP.test'
+});
+
