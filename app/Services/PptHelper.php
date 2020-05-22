@@ -25,29 +25,7 @@ class PptHelper
 {
 
 
-    public const Datos_Filtro_Blancos_AssayName = array(
-        1 => "CuT_CMCCAAS_pct",
-        2 => "CuT_pct_2A15tAA",
-        3 => "CuS_CMCCAAS_pct",
-        4 => "CuS_pct_SCA2pAA",
-        5 => "CuCN_pct_CYN6pAA",
-        6 => "CuFe_pct_FES7pAA"
-    );
-
-    public const Datos_Filtro_Standard_AssayName = array(
-        1 => "CuFe_pct_FES3paAA",
-        2 => "Fe_pct_2A15tAA",
-        3 => "FeT_pct_TOT6tAA",
-        4 => "S-pct_NON1sLE",
-        5 => "S2_pct_NAO6hLE",
-    );
-
-    public const Datos_Filtro_Blancos_StandardId = array(
-        1 => "BF42",
-        2 => "BG4"
-    );
-
-    public function standardIDActivo($desde, $hasta, $tipo)
+    public function standardIDActivos($desde, $hasta, $tipo)
     {
         if ($tipo == 'blanco') {
             $sID = 'B%';
@@ -91,13 +69,10 @@ class PptHelper
         foreach ($assayName_set as $item) {
             $assayName_array[] = $item->ASSAYNAME;
         }
-
-
         return $assayName_array;
-
     }
 
-    public function suiteActivo($desde, $hasta)
+    public function suiteActivos($desde, $hasta)
     {
         $analysisuite_set = DB::select("SELECT distinct B.ANALYSISSUITE
         FROM DTM_QAQC_BLK_STD B
@@ -105,24 +80,24 @@ class PptHelper
         where (TRY_CONVERT(date, B.RETURNDATE,103))
         between '$desde' and '$hasta'
         and C.PROJECTCODE = 'IN-FILL';");
-
         foreach ($analysisuite_set as $item) {
             $analysis_suite_array[] = $item->ANALYSISSUITE;
         }
-
         return $analysis_suite_array;
     }
 
-    public const Datos_Filtro_Standard_Id = array(
+    public const Prueba_StandardID = array(
         1 => "ST43",
-        2 => "ST45",
-        3 => "ST46",
-        4 => "ST47",
-        5 => "ST48",
-        6 => "ST49",
-        7 => "ST50",
-        8 => "ST52"
+        2 => "ST45"
     );
+
+    public const Prueba_AssayName = array(
+        1 => "CuCN_pct_CYN6pAA",
+        2 => "CuT_CMCCAAS_pct",
+        3 => "ClT_kgt_SUL2pPT",
+        4 => "Fe_pct_2A15tAA"
+    );
+
 
     public const Datos_Tabla = array(
         1 => "# of Analyses Above Threshold",
@@ -156,174 +131,224 @@ class PptHelper
         $this->estandarControl($objPPT, $desde, $hasta);
 
         //   GUARDAR EN EL EQUIPO
-//        $oWriterPPTX = IOFactory::createWriter($objPPT, 'PowerPoint2007');
-//        $rutaArchivo = storage_path("/app") . "/sample" . date('d-m-Y') . ".pptx";
-//        $oWriterPPTX->save($rutaArchivo);
-//        header('Content-type: application/vnd.openxmlformats-officedocument.presentationml.presentation');
-//        readfile($rutaArchivo);
-//        exit;
+        $oWriterPPTX = IOFactory::createWriter($objPPT, 'PowerPoint2007');
+        $rutaArchivo = storage_path("/app") . "/sample" . date('d-m-Y') . ".pptx";
+        $oWriterPPTX->save($rutaArchivo);
+        header('Content-type: application/vnd.openxmlformats-officedocument.presentationml.presentation');
+        readfile($rutaArchivo);
+        exit;
     }
+
+    /**
+     * Funcion que crea array con fechas en ordenadas por timespam
+     * @param $data_set
+     * @return array
+     */
+    public function ordenarFechas($data_set)
+    {
+        $cont = 0;
+
+        foreach ($data_set as $item) {
+            $cont++;
+            $array_timestamp[strtotime($item->RETURNDATE)][] = $item;
+        }
+
+        //ordena array por timespam
+        ksort($array_timestamp);
+        //Reorganiza array en orden
+        foreach ($array_timestamp as $key => $value) {
+            if (count($value) > 1) {
+                for ($i = 0; count($value) > $i; $i++) {
+                    $array_aux[] = $value[$i];
+                }
+            } else {
+                $array_aux[] = $value[0];
+            }
+        }
+
+        $array_timestamp = $array_aux;
+
+        return $array_timestamp;
+    }
+
 
     public function blancoControl(PhpPresentation $objPPT, $vDesde, $vHasta)
     {
         $tipo = 'blanco';
-        $blk_standard_id = $this->standardIDActivo($vDesde, $vHasta, $tipo);
+        $blk_standard_id = $this->standardIDActivos($vDesde, $vHasta, $tipo);
         $blk_assayname = $this->assayNameActivos($vDesde, $vHasta, $tipo);
-        // $suite_activo = $this->suiteActivo($vDesde, $vHasta);
 
         foreach ($blk_standard_id as $key => $id) {
             foreach ($blk_assayname as $key => $assay) {
 
                 //FILTRO BD
-                $dataBD = $this->filtroBD($tipo, $id, $assay, $vDesde, $vHasta);
-
+                $data_set = $this->filtroBD($tipo, $id, $assay, $vDesde, $vHasta);
                 $cont = 0;
-                if (empty($dataBD)) {
+                if (empty($data_set)) {
                     $cont++;
                     continue;
                 }
 
-                $currentSlide = $objPPT->createSlide();
-                $serieTotal = [];
-                $seriesData = [];
-                $seriesError = [];
-                $seriesWarning = [];
+                $cont_set = count($data_set);
 
-                $contWarning = 0;
-                $contError = 0;
+                $data_set = $this->ordenarFechas($data_set);
+
+                $currentSlide = $objPPT->createSlide();
+                $series_total_value = [];
+                $series_data = [];
+                $series_error = [];
+                $series_warning = [];
+
+                $cont_warning = 0;
+                $cont_error = 0;
 
                 $cont = 0;
-                $cont_reg = 0;
+                $cont_aprob = 0;
 
-                foreach ($dataBD as $item) {
+                foreach ($data_set as $item) {
+
                     $cont++;
-                    if (count($seriesData) == 0) {
-                        $desdeReal = date('d-m-Y', strtotime($item->RETURNDATE));
+                    if (count($series_data) == 0) {
+                        $fecha_desde_real = date('d-m-Y', strtotime($item->RETURNDATE));
                     }
-                    $aux = date('j-M', strtotime($item->RETURNDATE));
                     //SE PUEDE USAR ASSAY_PRIORITY >=2
                     if ($item->ASSAYVALUE >= 0.006 && $item->ASSAYVALUE < 0.01) {
-                        $contWarning++;
-                        $seriesWarning[$cont] = floatval($item->ASSAYVALUE);
+                        $cont_warning++;
+                        $series_warning[$cont] = floatval($item->ASSAYVALUE);
                     } elseif ($item->ASSAYVALUE >= 0.01) {
-                        $contError++;
-                        $seriesError[$cont] = floatval($item->ASSAYVALUE);
+                        $cont_error++;
+                        $series_error[$cont] = floatval($item->ASSAYVALUE);
                     } else {
-                        $seriesData[$cont] = floatval($item->ASSAYVALUE);
-                        $seriesWarning[$cont] = 0;
-                        $seriesError[$cont] = 0;
-                        $cont_reg++;
+                        $series_data[$cont] = floatval($item->ASSAYVALUE);
+                        $series_warning[$cont] = 0;
+                        $series_error[$cont] = 0;
+                        $cont_aprob++;
                     }
-                    $hastaReal = date('d-m-Y', strtotime($item->RETURNDATE));
+                    $fecha_hasta_real = date('d-m-Y', strtotime($item->RETURNDATE));
 
-                    $serieTotal[$cont] = floatval($item->ASSAYVALUE);
-
+                    $series_total_value[$cont] = floatval($item->ASSAYVALUE);
                 }
 
-                $total_set = count($dataBD);
-                $valores = $this->calculosTabla($total_set, $cont_reg, $serieTotal, $contError, $contWarning);
+                $valores = $this->calculosTabla($series_total_value, $cont_set, $cont_aprob, $cont_warning, $cont_error);
 
                 $this->crearTablas($currentSlide, $valores);
 
-                $this->crearTitulo($currentSlide, $id, $assay, $desdeReal, $hastaReal);
+                $this->crearTitulo($currentSlide, $id, $assay, $fecha_desde_real, $fecha_hasta_real);
 
-                $barChart = $this->crearSeries($seriesData, $seriesWarning, $seriesError);
+                $barChart = $this->crearSeries($series_data, $series_warning, $series_error);
                 $this->crearGrafico($currentSlide, $id, $assay, $barChart);
             }
-
         }
-
     }
 
     public function estandarControl(PhpPresentation $objPPT, $vDesde, $vHasta)
     {
         $tipo = "estandar";
-        $std_standard_id = $this->standardIDActivo($vDesde, $vHasta, $tipo);
+        $std_standard_id = $this->standardIDActivos($vDesde, $vHasta, $tipo);
         $std_assayname = $this->assayNameActivos($vDesde, $vHasta, $tipo);
 
         $cont = 0;
 
-        foreach ($std_standard_id as $key => $id) {
+        foreach (self::Prueba_StandardID as $key => $id) {
+            foreach (self::Prueba_AssayName as $key => $assay) {
+//
+                // $id = "ST43";
+                //    $assay = "CuCN_pct_CYN6pAA";
 
-            foreach ($std_assayname as $key => $assay) {
                 $cont++;
 
-            }
+                $filtro_array = [
+                    'tipo' => $tipo,
+                    'id' => $id,
+                    'assay' => $assay,
+                    'desde' => $vDesde,
+                    'hasta' => $vHasta
+                ];
 
+                $data_set = $this->filtroBD($tipo, $id, $assay, $vDesde, $vHasta);
+
+                if (empty($data_set)) {
+                    $cont++;
+                    continue;
+                }
+
+                $data_set = $this->ordenarFechas($data_set);
+
+                $currentSlide = $objPPT->createSlide();
+
+                $datos_grafico = $this->datosGrafico($data_set);
+
+                $datos_grafico_norm = $this->datosGraficoNorm($data_set);
+
+                $cont_error = 0;
+                $cont_warn = 0;
+                $cont_aprob = 0;
+                $series_total_values = [];
+                $cont_set = 0;
+
+
+                //OBTENGO FECHAS REALES, CANTIDAD DE ELEMENTOS SOBRE EL ERROR-WARNING,
+                //CANTIDAD TOTAL DE ELEMENTOS ACEPTADOS Y CANTIDAD TOTAL DE ELEMENTOS
+                foreach ($data_set as $item) {
+                    if (count($series_total_values) == 0) {
+                        $desdeReal = date('d-m-Y', strtotime($item->RETURNDATE));
+                    }
+
+                    if ((floatval($item->ASSAYVALUE)) >= ($datos_grafico["error_max"]) ||
+                        floatval($item->ASSAYVALUE) <= ($datos_grafico["error_min"])) {
+                        $cont_error++;
+                    } elseif ((floatval($item->ASSAYVALUE)) >= ($datos_grafico["warn_max"]) ||
+                        floatval($item->ASSAYVALUE) <= ($datos_grafico["warn_min"])) {
+                        $cont_warn++;
+                    } else {
+                        $cont_aprob++;
+                        $series_total_values[$cont_aprob] = floatval($item->ASSAYVALUE);
+                    }
+                    $hastaReal = date('d-m-Y', strtotime($item->RETURNDATE));
+                    $cont_set++;
+                }
+
+                //llamada a browsershot y le envia los parametros para usar el filtroBD()
+                $chartHelp = new ChartHelper();
+                $ruta = $chartHelp->generarImagen($filtro_array);
+                $filtro_array['tipo'] = 'normalizado';
+                $ruta_norm = $chartHelp->generarImagen($filtro_array);
+
+                //TABLA DATOS
+                $valores = $this->calculosTabla($series_total_values, $cont_set, $cont_aprob, $cont_warn, $cont_error);
+
+                $this->crearTablas($currentSlide, $valores);
+                $this->crearTitulo($currentSlide, $id, $assay, $desdeReal, $hastaReal);
+
+                $this->crearDibujo($currentSlide, $ruta, $ruta_norm);
+
+            }
         }
-
-
-        $vId = 'ST43';
-        $vAssay = 'CuT_CMCCAAS_pct';
-        $desdeReal = 'Nol';
-        $hastaReal = 'No';
-
-
-        $filtro_array = [
-            'tipo' => $tipo,
-            'id' => $vId,
-            'assay' => $vAssay,
-            'desde' => $vDesde,
-            'hasta' => $vHasta
-        ];
-
-        $currentSlide = $objPPT->createSlide();
-
-        $data_set = $this->filtroBD($tipo, $vId, $vAssay, $vDesde, $vHasta);
-        $datos_grafico = $this->datosGrafico($data_set);
-
-        $cont_error = 0;
-        $cont_warn = 0;
-        $cont_total = 0;
-        $serie_total = [];
-        $total_reg = 0;
-
-        foreach ($data_set as $item) {
-            if (count($serie_total) == 0) {
-                $desdeReal = date('d-m-Y', strtotime($item->RETURNDATE));
-            }
-
-            if ((floatval($item->ASSAYVALUE)) >= ($datos_grafico["error_max"]) ||
-                floatval($item->ASSAYVALUE) <= ($datos_grafico["error_min"])) {
-                $cont_error++;
-            } elseif ((floatval($item->ASSAYVALUE)) >= ($datos_grafico["warn_max"]) ||
-                floatval($item->ASSAYVALUE) <= ($datos_grafico["warn_min"])) {
-                $cont_warn++;
-            } else {
-                $cont_total++;
-                $serie_total[$cont_total] = floatval($item->ASSAYVALUE);
-            }
-            $hastaReal = date('d-m-Y', strtotime($item->RETURNDATE));
-            $total_reg++;
-        }
-
-
-        //llamada a browsershot y le envia los parametros para usar el filtroBD()
-        $chartHelp = new ChartHelper();
-        $ruta = $chartHelp->generarImagen($filtro_array);
-
-        //TABLA DATOS
-        $valores = $this->calculosTabla($total_reg, $cont_total, $serie_total, $cont_error, $cont_warn);
-
-        $this->crearTablas($currentSlide, $valores);
-        $this->crearTitulo($currentSlide, $vId, $vAssay, $desdeReal, $hastaReal);
-
-        $this->crearDibujo($currentSlide, $ruta);
     }
 
-
-    public function stdNorm($data_set)
+    public function datosGraficoNorm($data_set)
     {
-        $norm = [];
-        foreach ($data_set as $item) {
-            $aux = date('d-m', strtotime($item->RETURNDATE));
 
-            if (!array_key_exists($aux, $norm)) {
-                $norm[$aux][] = round(($item->STANDARDVALUE - $item->ASSAYVALUE) / $item->STANDARDDEVIATION, 3);
-            } else {
-                $norm[$aux][] = round(($item->STANDARDVALUE - $item->ASSAYVALUE) / $item->STANDARDDEVIATION, 3);
-            }
+        $series_data = [];
+        foreach ($data_set as $item) {
+
+            $cat = "Aprobado";
+            $fecha = strtotime($item->RETURNDATE) * 1000;
+
+            $valor = round(floatval(($item->ASSAYVALUE - $item->STANDARDVALUE) / $item->STANDARDDEVIATION), 3);
+
+//            if (!array_key_exists($aux, $series_data)) {
+//                $series_data[$aux][] = round(($item->STANDARDVALUE - $item->ASSAYVALUE) / $item->STANDARDDEVIATION, 3);
+//            } else {
+//                $series_data[$aux][] = round(($item->STANDARDVALUE - $item->ASSAYVALUE) / $item->STANDARDDEVIATION, 3);
+//            }
+            $series_data[$cat][] = [$fecha, $valor];
         }
+
+        foreach ($series_data as $cat => $values) {
+            $series[] = ['name' => $cat, 'data' => $values];
+        }
+
         $error_max = 3;
         $error_min = -3;
         $warn_max = 2;
@@ -331,39 +356,36 @@ class PptHelper
         $acept = 0;
 
         $datos_grafico = [
-            'series' => $norm,
+            'series' => $series,
             'error_max' => $error_max,
             'error_min' => $error_min,
             'std_value' => $acept,
             'warn_max' => $warn_max,
             'warn_min' => $warn_min
         ];
-
-
-        return $norm;
+        return $datos_grafico;
     }
 
-    //retorna las lineas del grafico
+    //RETORNA ARRAY CON: SERIE LISTA, LINEAS DE GRAFICO: ERROR, WARNING, STANDARD VALUE
     public function datosGrafico($data_set)
     {
-        $this->stdNorm($data_set);
-
         //obtener datos para el grafico
         $cont = 0;
         $series_data = [];
         foreach ($data_set as $item) {
+
             // Llave para armar el array asociativo
             $cat = "Aprobado"; //date('Y-m-d', strtotime($item->RETURNDATE));
-            $fecha = date('Y-m-d', strtotime($item->RETURNDATE));
-
+            // $fecha = date('Y-m-d', strtotime($item->RETURNDATE));
+            $fecha = strtotime($item->RETURNDATE) * 1000;
             // Si no existe la llave, inicializa con un array vacío
             if (!isset($series_data[$cat])) {
                 $series_data[$cat] = [];
-
             }
             // Agrega el valor dentro del array en la posición "$cat"
-            $series_data[$cat][] = [strtotime($fecha), floatval($item->ASSAYVALUE)];
-           // $series_data[$cat][] = [$fecha, floatval($item->ASSAYVALUE)];
+
+            $series_data[$cat][] = [$fecha, floatval($item->ASSAYVALUE)];
+
         }
         // Y ahora le damos la foirema final
 
@@ -371,7 +393,7 @@ class PptHelper
             $series[] = ['name' => $cat, 'data' => $values];
         }
 
-       // dd($series[0]["data"][30][0]);
+        // dd($series[0]["data"][30][0]);
 
         $std_value = round($item->STANDARDVALUE, 3);
         $error_max = round($std_value + ($item->STANDARDDEVIATION) * 3, 3);
@@ -392,88 +414,112 @@ class PptHelper
         return $datos_grafico;
     }
 
-    public function filtroBD($tipo, $standardID, $assayName, $pDesde, $pHasta)
+    public function filtroBD($tipo, $standard_id, $assay_name, $fecha_desde, $fecha_hasta)
     {
-
-        $suite = "SUPC_2015";
-
-        $auxSelect = " ";
-        $auxInner = " ";
-        if ($tipo == 'estandar') {
-            $auxInner = "inner join DTM_STANDARDSASSAY S on B.ASSAYNAME = S.NAME and B.STANDARDID = S.STANDARDID";
-            $auxSelect = ", C.PROJECTCODE, S.STANDARDVALUE, S.STANDARDDEVIATION, S.ACCEPTABLEMAX, S.ACCEPTABLEMIN";
+        $suite_set = $this->suiteActivos($fecha_desde, $fecha_hasta);
+        foreach ($suite_set as $item) {
+            $suite_data[] = "'" . $item . "'";
         }
-        return DB::select("SELECT B.* $auxSelect
-        FROM DTM_QAQC_BLK_STD as B $auxInner
+        $suite_query = implode(",", $suite_data);
+
+        $std_select = " ";
+        $std_inner_join = " ";
+        if ($tipo == 'estandar' || $tipo == 'normalizado') {
+            $std_inner_join = "inner join DTM_STANDARDSASSAY S on B.ASSAYNAME = S.NAME and B.STANDARDID = S.STANDARDID";
+            $std_select = ", C.PROJECTCODE, S.STANDARDVALUE, S.STANDARDDEVIATION, S.ACCEPTABLEMAX, S.ACCEPTABLEMIN";
+        }
+        return DB::select("SELECT B.* $std_select
+        FROM DTM_QAQC_BLK_STD as B $std_inner_join
          inner join DTM_COLLAR as C
           on B.HOLEID = C.HOLEID
-        where B.STANDARDID = '$standardID'
-         and B.ASSAYNAME = '$assayName'
+        where B.STANDARDID = '$standard_id'
+         and B.ASSAYNAME = '$assay_name'
          and B.ASSAY_PRIORITY=1
          and (TRY_CONVERT(date, B.RETURNDATE,103))
-          between '$pDesde' and '$pHasta'
+          between '$fecha_desde' and '$fecha_hasta'
          and C.PROJECTCODE = 'IN-FILL'
-         and C.STATUS in ('Extraible','Modelable','Rem  apeo','Recodificacion')
-         and (ANALYSISSUITE = '$suite')
+         and C.STATUS in ('Extraible','Modelable','Remapeo','Recodificacion','Reproceso')
+         and B.ANALYSISSUITE IN ($suite_query)
         order by (TRY_CONVERT(date, B.RETURNDATE,103)) ASC;");
 
     }
 
-    public function calculosTabla($count_reg, $seriesData, $serieTotal, $contError, $contWarning)
+    public function calculosTabla($series_total_values, $cont_set, $cont_aprob, $cont_warning, $cont_error)
     {
-        //MEAN
-        if (count($serieTotal) == 0) {
-            $auxM = 0;
-        } else {
-            $auxM = array_sum($serieTotal) / count($serieTotal);
-        }
-
-        $mean = number_format($auxM, 3);
-
-        //MEDIAN
-        $serieAux = $serieTotal;
-
-        $midd = ($count_reg - 1) / 2;
-
-        $median = $serieAux[$midd];
-
-
-        $contMin = min($serieTotal);
-        $contMax = max($serieTotal);
-        //STANDARD DEVIATION
-        $devStd = round(stats_standard_deviation($serieTotal), 3);
+        $cont = 0;
 
         //%OUTSIDE ERROR LIMIT
-        $pctError = round(($contError * 100) / count($serieTotal), 3);
+        $pct_outside_error = round(($cont_error * 100) / count($series_total_values), 3);
+        //MEAN
+        if (empty($series_total_values)) {
+            $auxM = 0;
+
+        } else {
+            $auxM = array_sum($series_total_values) / count($series_total_values);
+        }
+        $mean = round($auxM, 3, PHP_ROUND_HALF_DOWN);
+
+        //MEDIAN
+        if ($cont_set > 2) {
+            $midd = floor(($cont_set - 1) / 2);
+            if ($cont_set % 2) {
+                $median = $series_total_values[$midd];
+            } else {
+                $low = $series_total_values[$midd];
+                $high = $series_total_values[$midd + 1];
+                $median = (($low + $high) / 2);
+            }
+        } else {
+            $median = 0;
+        }
+
+        //MIN
+        $min_value = min($series_total_values);
+        //MAX
+        $max_value = max($series_total_values);
+
+        //STANDARD DEVIATION
+        $std_deviation = round(stats_standard_deviation($series_total_values), 3);
+//        $std_deviation += 0.001;
+
+        //STANDARD ERROR
+        $std_error = round(($std_deviation / sqrt($cont_set)), 3);
 
         //% REL.STD.DEV
-        $pctDevStd = round(floatval($devStd / $mean) * 100, 3);
-        //STANDARD ERROR
-        $stdError = round($devStd / sqrt(count($serieTotal)), 3);
         //% REL.STD.ERR
-        $pctErrorStd = round(floatval($stdError / $mean) * 100, 3);
+        if ($mean > 0) {
+            $pct_rel_std_dev = round(($std_deviation / $mean) * 100, 3);
+            $pct_rel_std_err = round(($std_error / $mean) * 100, 3);
+        } else {
+            $pct_rel_std_dev = 0;
+            $pct_rel_std_err = 0;
+        }
 
-        $bias = round(doubleval($auxM / 0.001) - 1, 3);
-        $pctBias = round($bias * 100, 3);
+
+        //TOTAL BIAS
+        $total_bias = round(doubleval($auxM / 0.001) - 1, 3);
+
+        //%MEAN BIAS
+        $pct_mean_bias = round($total_bias * 100, 3);
 
         $valores = array(
             //TOTAL
-            1 => $seriesData,
+            1 => $cont_aprob,
             //OUTSIDE WARNING
-            2 => $contWarning,
-            3 => $contError,
-            4 => $count_reg,
-            5 => $pctError,
+            2 => $cont_warning,
+            3 => $cont_error,
+            4 => $cont_set,
+            5 => $pct_outside_error,
             6 => $mean,
             7 => $median,
-            8 => $contMin,
-            9 => $contMax,
-            10 => $devStd,
-            11 => $pctDevStd,
-            12 => $stdError,
-            13 => $pctErrorStd,
-            14 => $bias,
-            15 => $pctBias
+            8 => $min_value,
+            9 => $max_value,
+            10 => $std_deviation,
+            11 => $pct_rel_std_dev,
+            12 => $std_error,
+            13 => $pct_rel_std_err,
+            14 => $total_bias,
+            15 => $pct_mean_bias
         );
         return $valores;
     }
@@ -607,26 +653,26 @@ class PptHelper
         }
     }
 
-    public function crearDibujo($currentSlide, $ruta)
+    public function crearDibujo($currentSlide, $ruta, $rutaNorm)
     {
         $chartImage = $currentSlide->createDrawingShape();
 
         $chartImage->setName('Grafico Standards')->setDescription('Imagen de grafico standards');
         $chartImage->setPath($ruta);
         $chartImage->setResizeProportional(false)
-            ->setHeight(250)
-            ->setWidth(700)
+            ->setHeight(270)
+            ->setWidth(710)
             ->setOffsetX(10)
             ->setOffsetY(170);
 
         $chartImage2 = $currentSlide->createDrawingShape();
-        $chartImage2->setName('Grafico Standards')->setDescription('Imagen de grafico standards');
-        $chartImage2->setPath($ruta);
+        $chartImage2->setName('Grafico Normalizado Std')->setDescription('Imagen de grafico standards');
+        $chartImage2->setPath($rutaNorm);
         $chartImage2->setResizeProportional(false)
-            ->setHeight(250)
-            ->setWidth(700)
+            ->setHeight(270)
+            ->setWidth(710)
             ->setOffsetX(10)
-            ->setOffsetY(420);
+            ->setOffsetY(445);
     }
 
     public function crearGrafico($currentSlide, $vId, $vAssay, $chartType)

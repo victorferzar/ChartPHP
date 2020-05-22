@@ -18,8 +18,8 @@
     <h1>Generador de PPT</h1>
 
     <div class="form-inline">
-        <input type="date" name="fecha_des" required placeholder="Fecha Desde" value="2018-01-01">
-        <input type="date" name="fecha_has" required placeholder="Fecha Hasta" value="2020-04-08">
+        <input type="date" name="fecha_des" required placeholder="Fecha Desde" value="2018-01-15">
+        <input type="date" name="fecha_has" required placeholder="Fecha Hasta" value="2019-04-11">
     </div>
 
     <button type="submit" class="btn btn-primary btn-block">GENERAR</button>

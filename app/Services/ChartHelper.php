@@ -4,6 +4,7 @@ namespace App\Services;
 
 
 use Spatie\Browsershot\Browsershot;
+use Spatie\Image\Manipulations;
 
 class ChartHelper
 {
@@ -12,6 +13,7 @@ class ChartHelper
      *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
+     * @throws \Spatie\Browsershot\Exceptions\CouldNotTakeBrowsershot
      */
     public function generarImagen(array $parametros)
     {
@@ -27,12 +29,11 @@ class ChartHelper
         $path = 'app/public/';
 
         if ($parametros["tipo"] == "estandar") {
-            $nombre = 'imageStandard' . date('Y-m-d') . '.png';
-        } elseif($parametros["tipo"]=="normalizado") {
-            $nombre = 'imageDoble' . date('Y-m-d') . '.png';
+            $nombre = 'imgStd_' . time() . '.jpg';
+        } elseif ($parametros["tipo"] == "normalizado") {
+            $nombre = 'imgNorm_' . time() . '.jpg';
         }
         $rutaImagen = storage_path($path . $nombre);
-
 
         $browserShot = Browsershot::url(route('chart', $parametros));
 
@@ -45,11 +46,14 @@ class ChartHelper
             ->devicePixelRatio(2)
             ->setScreenshotType("jpeg", 100)
             ->margins(15, 10, 10, 10)
-            ->windowSize(820, 410)
+            //->windowSize(1920, 1080)
+            //->fit(Manipulations::FIT_CONTAIN, 700, 700)
+            ->clip(20, 10, 770, 380)
             ->showBackground()
             ->waitUntilNetworkIdle()
             ->useCookies($cookie)
             ->save($rutaImagen);
+
         return $rutaImagen;
     }
 

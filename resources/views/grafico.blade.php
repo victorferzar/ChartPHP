@@ -33,13 +33,12 @@
         var std_value = '{{$std_value}}'
         var warn_min = '{{$warn_min}}'
         var warn_max = '{{$warn_max}}'
+        var standardId = '{{$standardId}}'
+        var assayName = '{{$assayName}}'
 
-        for (var i = 0; i<series.length; i+=1){
-            @dd(i)
 
-        }
-
-        Graficos.initGraficoStd(tipo, series, titulo, error_max, error_min, std_value, warn_min, warn_max);
+        Graficos.initGraficoStd(tipo, series, titulo, error_max, error_min,
+            std_value, warn_min, warn_max, standardId, assayName);
     });
 </script>
 
