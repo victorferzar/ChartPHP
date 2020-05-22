@@ -13,19 +13,25 @@
 </head>
 <body>
 
-<form action="{{route('generar')}}" class="form-group">
+<form action="{{route('generar')}}" method="post" class="form-group">
+    @csrf
     <h1>Generador de PPT</h1>
 
     <div class="form-inline">
-        <input type="date" name="fecha_des" required placeholder="Fecha Desde" value="2018-01-01" >
-        <input type="date" name="fecha_has" required placeholder="Fecha Hasta" value="2020-04-08" >
+        <input type="date" name="fecha_des" required placeholder="Fecha Desde" value="2018-01-15">
+        <input type="date" name="fecha_has" required placeholder="Fecha Hasta" value="2019-04-11">
     </div>
 
-     <button type="submit" class="btn btn-primary btn-block">GENERAR</button>
+    <button type="submit" class="btn btn-primary btn-block">GENERAR</button>
 
- </form>
+</form>
 
- <!-- Optional JavaScript -->
+
+<a href="{{route('mostrar')}}">Mostrar Grafico de Standards</a>
+<br>
+<a href="{{route('jpg')}}">CREAR IMAGEN Grafico de Standards</a>
+
+<!-- Optional JavaScript -->
 <!-- jQuery first, then Popper.js, then Bootstrap JS -->
 <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js"
         integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n"

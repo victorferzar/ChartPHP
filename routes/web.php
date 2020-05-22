@@ -17,5 +17,20 @@ use Illuminate\Support\Facades\Route;
     return view('welcome');
 });*/
 
-Route::get('/generateppt','GeneratePPT@generateppt')->name('generar');
-Route::get('index', 'GeneratePPT@index');
+Route::get('/', 'HomeController@index');
+
+Route::post('/generateppt', 'HomeController@generateppt')->name('generar');
+
+//Ruta que crea la imagen
+Route::get('/crearGrafico', 'ChartController')->name("chart");
+
+//Muestra del grafico desde el menu
+Route::get('/mostrarGrafico', function () {
+
+
+    return view('grafico', compact("series"));
+})->name('mostrar');
+
+
+//funcion de shot
+Route::get('/generar_jpg', 'ChartController')->name('jpg');
